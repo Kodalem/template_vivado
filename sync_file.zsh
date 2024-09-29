@@ -124,6 +124,9 @@ fi
 # I know that this backup system is very... basic and after 5th it just overwrites the oldest one,
 # but alas, I need to actually do the stuff I am supposed to do.
 
+# chmod the .xpr file
+chmod 644 "$xpr_loc"
+
 # Edit the contents of the .xpr file to include the new files by calling the python script
 python3 xpr_edit_script.py "$xpr_loc"
 # Remove the broken first line of the .xpr file
