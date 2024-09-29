@@ -1,4 +1,5 @@
 mod function_library;
+mod xml_manipulation;
 
 use std::env;
 
