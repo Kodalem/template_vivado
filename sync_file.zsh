@@ -131,3 +131,14 @@ chmod 644 "$xpr_loc"
 python3 xpr_edit_script.py "$xpr_loc"
 # Remove the broken first line of the .xpr file
 sed -i '' '1d' "$xpr_loc"
+
+# If the script runs successfully, then echo the success message
+if [ $? -eq 0 ]; then
+    echo "Successfully added the files to the project"
+else
+    echo "Error in adding the files to the project"
+    exit 1
+fi
+
+# Run the Rust script to auto update the project
+rust_sources/target/debug/rust_sources . "$project_loc" 100
