@@ -1,0 +1,15 @@
+
+lm1 <- glm(cpue ~ effort, data = large)
+
+a <- lm1$coefficients[1]
+b <- lm1$coefficients[2]
+
+catch
+
+which a+2*beffort = 0
+effort_msy = a/(-2b)
+#effort @ MSY
+
+# How many dolphins
+# MSY = 0.5%
+dolphins = 0.005 * effort_msy
