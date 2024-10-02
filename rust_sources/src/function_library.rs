@@ -39,28 +39,28 @@ struct FileStructure {
 
 
 fn overwrite_file(from_file: &mut ProjectFile, to_file: &mut ProjectFile) -> bool {
-    // Save the old file age 
+    // Save the old file age
     let old_file_age = from_file.file_age;
-    
-    
+
+
     let from_file_path = Path::new(&from_file.file_path);
     //println!("From file: {}", from_file.file_path);
     let to_file_path = Path::new(&to_file.file_path);
     //println!("To file:{}", to_file.file_path);
     fs::copy(from_file_path, to_file_path).expect("Something went wrong while copying the file");
-    
+
     // Update the file age
     let metadata = fs::metadata(to_file.file_path.clone()).unwrap();
     let modified_time = metadata.modified().unwrap();
-    
+
     // Throw error if the file age has not been updated
     if modified_time == old_file_age {
         panic!("The file age has not been updated");
     }
-    
+
     to_file.update_file_age(modified_time);
     from_file.update_file_age(modified_time);
-    
+
     true
 }
 
@@ -91,7 +91,7 @@ fn build_repository_file_struct(file_name: &str, file_path: &str) -> ProjectFile
 
 fn build_project_file_struct(file_name: &str, file_path: &str) -> ProjectFile {
     println!("{}", file_path);
-    
+
     let metadata = fs::metadata(file_path).unwrap();
     let modified_time = metadata.modified().unwrap();
     let mut file = ProjectFile {
@@ -108,7 +108,7 @@ fn check_file_has_changed(file: &ProjectFile) -> bool {
     let modified_time = metadata.modified().unwrap();
     //println!("File age: {:?}", file.file_age);
     //println!("Modified time: {:?}", modified_time);
-    
+
     if modified_time != file.file_age {
         //print!("File has changed!");
         true
@@ -132,12 +132,12 @@ fn cache_files_directory_from_repository(repo_path: &str, vivado_project_path: &
     if !xpr_file_path.exists() {
         panic!("The vivado project file does not exist");
     }
-    
+
     // Create symbolic structures of three types of files
     let mut design_symbolic_list_vector: Vec<SymbolicLinkStructFile> = Vec::new();
     let mut simulation_symbolic_list_vector: Vec<SymbolicLinkStructFile> = Vec::new();
     let mut constraint_symbolic_list_vector: Vec<SymbolicLinkStructFile> = Vec::new();
-    
+
     // Find the .srcs directory in the vivado project
     let vivado_project_srcs_path = Path::new(vivado_project_path);
     let vivado_project_srcs = fs::read_dir(vivado_project_srcs_path).unwrap();
@@ -151,16 +151,16 @@ fn cache_files_directory_from_repository(repo_path: &str, vivado_project_path: &
         }
     }
     println!(".srcs file path: {}", srcs_path);
-    
+
     // Create vivado project path
-    let burrowed_vivado_design_path:&str = "/sources_1/new/design_sources"; 
+    let burrowed_vivado_design_path:&str = "/sources_1/new/design_sources";
     let burrowed_vivado_simulation_path:&str = "/sim_1/new/simulation_sources";
     let burrowed_vivado_constraint_path:&str = "/constrs_1/new/constraint_sources";
-    
+
     let mut vivado_design_path = srcs_path.to_owned();
     let mut vivado_simulation_path = srcs_path.to_owned();
     let mut vivado_constraint_path = srcs_path.to_owned();
-    
+
     vivado_design_path.push_str(burrowed_vivado_design_path);
     println!("{}", vivado_design_path);
     vivado_simulation_path.push_str(burrowed_vivado_simulation_path);
@@ -178,13 +178,15 @@ fn cache_files_directory_from_repository(repo_path: &str, vivado_project_path: &
     // Read the design_sources directory and list all files onto RepositoryFile struct
     let design_sources = fs::read_dir(owned_design_repo_path).unwrap();
     for file in design_sources {
+        // Clone the design path string
+        let mut vivado_design_path_loop = vivado_design_path.clone();
         let file = file.unwrap();
         let file_name = file.file_name().into_string().unwrap();
         let file_path = file.path().into_os_string().into_string().unwrap();
-        vivado_design_path.push_str("/");
-        vivado_design_path.push_str(&file_name);
+        vivado_design_path_loop.push_str("/");
+        vivado_design_path_loop.push_str(&file_name);
         let mut repo_file = build_repository_file_struct(&file_name, &file_path);
-        let mut project_file = build_project_file_struct(&file_name, &vivado_design_path);
+        let mut project_file = build_project_file_struct(&file_name, &vivado_design_path_loop);
         let mut symbolic_link = SymbolicLinkStructFile {
             repo_file,
             project_file,
@@ -201,13 +203,15 @@ fn cache_files_directory_from_repository(repo_path: &str, vivado_project_path: &
     println!("{}", owned_simulation_repo_path);
     let simulation_sources = fs::read_dir(owned_simulation_repo_path).unwrap();
     for file in simulation_sources {
+        // Clone the design path string
+        let mut vivado_simulation_path_loop = vivado_simulation_path.clone();
         let file = file.unwrap();
         let file_name = file.file_name().into_string().unwrap();
         let file_path = file.path().into_os_string().into_string().unwrap();
-        vivado_simulation_path.push_str("/");
-        vivado_simulation_path.push_str(&file_name);
+        vivado_simulation_path_loop.push_str("/");
+        vivado_simulation_path_loop.push_str(&file_name);
         let mut repo_file = build_repository_file_struct(&file_name, &file_path);
-        let mut project_file = build_project_file_struct(&file_name, &vivado_simulation_path);
+        let mut project_file = build_project_file_struct(&file_name, &vivado_simulation_path_loop);
         let mut symbolic_link = SymbolicLinkStructFile {
             repo_file,
             project_file,
@@ -216,7 +220,7 @@ fn cache_files_directory_from_repository(repo_path: &str, vivado_project_path: &
         };
         simulation_symbolic_list_vector.push(symbolic_link);
     };
-    
+
     // Do the same for constraint_sources
     let mut owned_constraint_repo_path = repo_path.to_owned();
     let burrowed_constraint_repo_path:&str = "/constraint_sources";
@@ -224,13 +228,15 @@ fn cache_files_directory_from_repository(repo_path: &str, vivado_project_path: &
     println!("{}", owned_constraint_repo_path);
     let constraint_sources = fs::read_dir(owned_constraint_repo_path).unwrap();
     for file in constraint_sources {
+        // Clone constraint path string
+        let mut vivado_constraint_path_loop = vivado_constraint_path.clone();
         let file = file.unwrap();
         let file_name = file.file_name().into_string().unwrap();
         let file_path = file.path().into_os_string().into_string().unwrap();
-        vivado_constraint_path.push_str("/");
-        vivado_constraint_path.push_str(&file_name);
+        vivado_constraint_path_loop.push_str("/");
+        vivado_constraint_path_loop.push_str(&file_name);
         let mut repo_file = build_repository_file_struct(&file_name, &file_path);
-        let mut project_file = build_project_file_struct(&file_name, &vivado_constraint_path);
+        let mut project_file = build_project_file_struct(&file_name, &vivado_constraint_path_loop);
         let mut symbolic_link = SymbolicLinkStructFile {
             repo_file,
             project_file,
@@ -239,7 +245,7 @@ fn cache_files_directory_from_repository(repo_path: &str, vivado_project_path: &
         };
         constraint_symbolic_list_vector.push(symbolic_link);
     };
-    
+
     // Create the final FileStructure struct
     let mut file_structure = FileStructure {
         design: design_symbolic_list_vector,
@@ -247,7 +253,7 @@ fn cache_files_directory_from_repository(repo_path: &str, vivado_project_path: &
         simulation: simulation_symbolic_list_vector,
     };
     file_structure
-    
+
 }
 
 
@@ -310,11 +316,11 @@ fn check_rewrite_file_loop(file_system: &mut FileStructure) {
         else if check_file_has_changed(&constraint_file.project_file) {
             overwrite_file(&mut constraint_file.project_file, &mut constraint_file.repo_file);
         }
-        else { 
+        else {
             //println!("Constraint file has not changed!");
         }
     }
-}    
+}
 
 pub(crate) fn main_loop(repo_path: &str, vivado_project_path: &str, update_rate_ms: u64) {
     let mut file_structure = cache_files_directory_from_repository(repo_path, vivado_project_path);

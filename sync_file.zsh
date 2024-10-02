@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 cd "$(dirname "$0")" || exit;
 
 # Take the argument of the path of the vivado project
