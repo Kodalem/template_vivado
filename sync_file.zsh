@@ -10,12 +10,26 @@ sym_flag="$2"
 echo "$sym_flag"
 sym_flag_name="--symbolic"
 
-# Tell the user if they are in symbolic mode or hard copy mode
-if [[ "$sym_flag" == "$sym_flag_name" ]]; then
-    echo "Symbolic link mode"
-else
-    echo "Hard copy mode"
-fi
+sym_flag_3="$3"
+echo "$sym_flag_3"
+sym_flag_name_rust="--no-rt-update"
+
+# Put the symbolic flags onto a array
+sym_flags=("$sym_flag" "$sym_flag_3")
+
+# Tell the user if they are in symbolic mode/hard copy mode and if they are in rust update mode
+for i in "${sym_flags[@]}"; do
+    if [[ " ${i} " =~ ${sym_flag_name} ]]; then
+        sym_mode_flag=1
+        echo "Symbolic link mode"
+    elif [[ " ${i} " =~ {sym_flag_name_rust}  ]]; then
+        no_rt_update_flag=1
+        echo "No real time update mode"
+    else
+        echo "Hard copy mode"
+    fi
+done
+
 
 # Take this repository's directory paths as variables
 constraint_dir="constraint_sources"
@@ -79,12 +93,12 @@ fi
 # Add constraint, design and simulation files to the project, in the .srcs directory, by their source_1, sim_1
 # and constrs_1 directories' files respectively in their 'new' directory.
 # If the /new/ directory does not exist, create it. Check also if it is on symlink mode.
-if [ -d "$source_loc/constrs_1/new" ] && [ -d "$source_loc/sim_1/new" ] && [ -d "$source_loc/sources_1/new" ] && [ -z "$sym_flag" ]; then
+if [ -d "$source_loc/constrs_1/new" ] && [ -d "$source_loc/sim_1/new" ] && [ -d "$source_loc/sources_1/new" ] && [ -z "$sym_mode_flag" ]; then
     cp -r "$constraint_dir" "$source_loc/constrs_1/new"
     cp -r "$design_dir" "$source_loc/sources_1/new"
     cp -r "$simulation_dir" "$source_loc/sim_1/new"
     echo "Copied files!"
-elif [ -d "$source_loc/constrs_1/new" ] && [ -d "$source_loc/sim_1/new" ] && [ -d "$source_loc/sources_1/new" ] && [[ "$sym_flag" == "$sym_flag_name" ]]; then
+elif [ -d "$source_loc/constrs_1/new" ] && [ -d "$source_loc/sim_1/new" ] && [ -d "$source_loc/sources_1/new" ] && [[ "$sym_mode_flag" == "1" ]]; then
     ln -s "$constraint_dir" "$source_loc/constrs_1/new"
     ln -s "$design_dir" "$source_loc/sources_1/new"
     ln -s "$simulation_dir" "$source_loc/sim_1/new"
@@ -139,6 +153,14 @@ else
     echo "Error in adding the files to the project"
     exit 1
 fi
+
+# If the user has specified to not update the project in real time, then exit the script
+if [ -n "$no_rt_update_flag" ]; then
+    exit 0
+fi
+
+# Build the Rust script
+cargo build --manifest-path=rust_sources/Cargo.toml
 
 # Run the Rust script to auto update the project
 rust_sources/target/debug/rust_sources . "$project_loc" 100

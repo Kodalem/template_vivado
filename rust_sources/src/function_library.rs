@@ -90,7 +90,8 @@ fn build_repository_file_struct(file_name: &str, file_path: &str) -> ProjectFile
 }
 
 fn build_project_file_struct(file_name: &str, file_path: &str) -> ProjectFile {
-    //println!("{}", file_path);
+    println!("{}", file_path);
+    
     let metadata = fs::metadata(file_path).unwrap();
     let modified_time = metadata.modified().unwrap();
     let mut file = ProjectFile {
@@ -317,6 +318,8 @@ fn check_rewrite_file_loop(file_system: &mut FileStructure) {
 
 pub(crate) fn main_loop(repo_path: &str, vivado_project_path: &str, update_rate_ms: u64) {
     let mut file_structure = cache_files_directory_from_repository(repo_path, vivado_project_path);
+    println!("File structure has been cached and is now ready to real time update!");
+    println!("The real-time update rate is: {} ms", update_rate_ms);
     loop {
         check_rewrite_file_loop(&mut file_structure);
         std::thread::sleep(std::time::Duration::from_millis(update_rate_ms));
