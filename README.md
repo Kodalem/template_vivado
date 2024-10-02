@@ -5,7 +5,7 @@ This is template repository for creating  Vivado projects without causing confli
 1. Fork this repository
 2. Clone the forked repository to your local machine.
 3. Create a new branch for your project.
-4. Create a new Vivado project.
+4. Create a new Vivado project - (**Just in case do not use your old project that was not initialized from this template before**)
 5. To run the synchronize between made files for each folder by running the zsh script.
 6. From this to project: `zsh sync_file.zsh $PATH_TO_YOUR_PROJECT`
 8. This will also run a Rust program that will automatically update all files associated with the project.
