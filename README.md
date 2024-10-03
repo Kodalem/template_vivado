@@ -36,3 +36,7 @@ If your Vivado application does not have access to your copied repository, then 
 
 ***Yes!***
 
+#### What is with the licence?
+
+Well, this is incredibly choppy and very ugly looking code that miracolously works and is another huge project of itself to refactor into a more cleaner format - you are welcome to try to clean this up **only** if you truly want to.
+
