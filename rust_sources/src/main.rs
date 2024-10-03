@@ -1,3 +1,5 @@
+extern crate core;
+
 mod function_library;
 
 use std::env;

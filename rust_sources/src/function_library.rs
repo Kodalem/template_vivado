@@ -33,8 +33,13 @@ struct SymbolicLinkStructFile{
 #[derive(Clone)]
 struct FileStructure {
     design: Vec<SymbolicLinkStructFile>,
+    design_path: String,
     constraint: Vec<SymbolicLinkStructFile>,
+    constraint_path: String,
     simulation: Vec<SymbolicLinkStructFile>,
+    simulation_path: String,
+    project_path: String,
+    repo_path: String,
 }
 
 
@@ -44,9 +49,9 @@ fn overwrite_file(from_file: &mut ProjectFile, to_file: &mut ProjectFile) -> boo
 
 
     let from_file_path = Path::new(&from_file.file_path);
-    //println!("From file: {}", from_file.file_path);
+    println!("From file: {}", from_file.file_path);
     let to_file_path = Path::new(&to_file.file_path);
-    //println!("To file:{}", to_file.file_path);
+    println!("To file:{}", to_file.file_path);
     fs::copy(from_file_path, to_file_path).expect("Something went wrong while copying the file");
 
     // Update the file age
@@ -78,6 +83,19 @@ fn check_if_sources_exist() -> bool {
 }
 
 fn build_repository_file_struct(file_name: &str, file_path: &str) -> ProjectFile {
+    // If the file ends with tilde, then it is a backup file - IGNORE IT
+    if file_name.ends_with("~") {
+        return ProjectFile {
+            file_name: file_name.to_string(),
+            file_path: file_path.to_string(),
+            file_age: SystemTime::now(),
+            exists: false,
+        };
+    }
+
+    println!("File name: {}", file_name);
+    println!("File path: {}", file_path);
+
     let metadata = fs::metadata(file_path).unwrap();
     let modified_time = metadata.modified().unwrap();
     let mut file = ProjectFile {
@@ -90,7 +108,6 @@ fn build_repository_file_struct(file_name: &str, file_path: &str) -> ProjectFile
 }
 
 fn build_project_file_struct(file_name: &str, file_path: &str) -> ProjectFile {
-    println!("{}", file_path);
 
     let metadata = fs::metadata(file_path).unwrap();
     let modified_time = metadata.modified().unwrap();
@@ -104,6 +121,11 @@ fn build_project_file_struct(file_name: &str, file_path: &str) -> ProjectFile {
 }
 
 fn check_file_has_changed(file: &ProjectFile) -> bool {
+    // Return false if the file does not exist
+    if file.file_name.ends_with("~") {
+        return false;
+    }
+    //println!("File path: {}", file.file_path);
     let metadata = fs::metadata(file.file_path.clone()).unwrap();
     let modified_time = metadata.modified().unwrap();
     //println!("File age: {:?}", file.file_age);
@@ -116,14 +138,126 @@ fn check_file_has_changed(file: &ProjectFile) -> bool {
         //println!("File has not changed!");
         false
     }
+
 }
 
-fn check_file_exists(file: ProjectFile) -> bool {
-    let metadata = fs::metadata(file.file_path);
-    match metadata {
-        Ok(_) => true,
-        Err(_) => false,
+fn return_folder_file_vector(folder_path: &str) -> Vec<String> {
+    let folder_path = Path::new(folder_path);
+    let folder = fs::read_dir(folder_path).unwrap();
+    let mut file_vector: Vec<String> = Vec::new();
+    for file in folder {
+        let file = file.unwrap();
+        let file_name = file.file_name().into_string().unwrap();
+        file_vector.push(file_name);
     }
+    file_vector
+}
+
+fn return_missing_file_names_from_vector(file_vector: Vec<String>, mut symbolic_link_vector: &Vec<SymbolicLinkStructFile>) -> Vec<String> {
+    let mut missing_files: Vec<String> = Vec::new();
+    for file in file_vector {
+        let mut file_exists = false;
+        for symbolic_link in symbolic_link_vector.clone() {
+            if symbolic_link.repo_file.file_name == file {
+                file_exists = true;
+            }
+        }
+        if !file_exists {
+            missing_files.push(file);
+        }
+    }
+    missing_files
+}
+
+fn check_file_structure(file_struct: &mut FileStructure) -> bool {
+    // Check how many files are in the directories
+    let design_files = return_folder_file_vector(&mut file_struct.design_path);
+    let design_file_amount = design_files.len() as u32;
+
+    let sim_files = return_folder_file_vector(&mut file_struct.simulation_path);
+    let simulation_file_amount = sim_files.len() as u32;
+
+    let constraint_files = return_folder_file_vector(&mut file_struct.constraint_path);
+    let constraint_file_amount = constraint_files.len() as u32;
+
+    // Compare the amount of files in the design_sources directory with the amount of files in the design vector
+    if design_file_amount != file_struct.design.len() as u32 {
+        let missing_files = return_missing_file_names_from_vector(design_files, &mut file_struct.design);
+          // Add missing files to the repository
+          for missing_file in missing_files.clone(){
+              // Build the file structure
+              let mut file_path_correction = file_struct.design_path.clone();
+                file_path_correction.push_str("/");
+                file_path_correction.push_str(&missing_file);
+              let project_struct = build_project_file_struct(&missing_file, &file_path_correction);
+              // Add the file to the repository
+              let repo_struct = add_file_from_vivado_to_repository(project_struct.clone(), &file_struct.repo_path, "design");
+              // Build the repo file structure
+              update_symbolic_link_list_vector(file_struct, repo_struct, project_struct, "design");
+              // Print the new symbolic link list vector
+              println!("Design symbolic link list vector:");
+                for design_file in &file_struct.design {
+                    println!("{}", design_file.repo_file.file_name);
+                }
+          }
+        // If missing file is null, then return true
+        if missing_files.is_empty() {
+            // Holy shit how backup files are obnoxious
+            return true;
+        }
+        return false;
+    }
+    // Compare the amount of files in the simulation_sources directory with the amount of files in the simulation vector
+    if simulation_file_amount != file_struct.simulation.len() as u32 {
+        let missing_files = return_missing_file_names_from_vector(sim_files, &mut file_struct.simulation);
+        // Add missing files to the repository
+        for missing_file in missing_files.clone(){
+            // Build the file structure
+            let mut file_path_correction = file_struct.simulation_path.clone();
+            file_path_correction.push_str("/");
+            file_path_correction.push_str(&missing_file);
+            let project_struct = build_project_file_struct(&missing_file, &file_path_correction);
+            // Add the file to the repository
+            let repo_struct = add_file_from_vivado_to_repository(project_struct.clone(), &file_struct.repo_path, "simulation");
+            // Build the repo file structure
+            update_symbolic_link_list_vector(file_struct, repo_struct, project_struct, "simulation");
+            println!("Design symbolic link list vector:");
+            for design_file in &file_struct.simulation {
+                println!("{}", design_file.repo_file.file_name);
+            }
+        }
+        // If missing file is null, then return true
+        if missing_files.is_empty() {
+            return true;
+        }
+        return false;
+    }
+    // Compare the amount of files in the constraint_sources directory with the amount of files in the constraint vector
+    if constraint_file_amount != file_struct.constraint.len() as u32 {
+        let missing_files = return_missing_file_names_from_vector(constraint_files, &mut file_struct.constraint);
+        // Add missing files to the repository
+        for missing_file in missing_files.clone(){
+            // Build the file structure
+            let mut file_path_correction = file_struct.constraint_path.clone();
+            file_path_correction.push_str("/");
+            file_path_correction.push_str(&missing_file);
+            let project_struct = build_project_file_struct(&missing_file, &file_path_correction);
+            // Add the file to the repository
+            let repo_struct = add_file_from_vivado_to_repository(project_struct.clone(), &file_struct.repo_path, "constraint");
+            // Build the repo file structure
+            update_symbolic_link_list_vector(file_struct, repo_struct, project_struct, "constraint");
+            println!("Design symbolic link list vector:");
+            for design_file in &file_struct.constraint {
+                println!("{}", design_file.repo_file.file_name);
+            }
+        }
+        // If missing file is null, then return true
+        if missing_files.is_empty() {
+            return true;
+        }
+        return false;
+    }
+    true
 }
 
 fn cache_files_directory_from_repository(repo_path: &str, vivado_project_path: &str) -> FileStructure {
@@ -248,11 +382,33 @@ fn cache_files_directory_from_repository(repo_path: &str, vivado_project_path: &
 
     // Create the final FileStructure struct
     let mut file_structure = FileStructure {
+        repo_path: repo_path.to_string(),
+        project_path: vivado_project_path.to_string(),
         design: design_symbolic_list_vector,
+        design_path: vivado_design_path,
         constraint: constraint_symbolic_list_vector,
+        constraint_path: vivado_constraint_path,
         simulation: simulation_symbolic_list_vector,
+        simulation_path: vivado_simulation_path,
     };
     file_structure
+
+}
+
+fn update_symbolic_link_list_vector (file_structure: &mut FileStructure, repo_file_append: ProjectFile,
+                                     project_file_append: ProjectFile, source_type: &str) {
+    let mut symbolic_link = SymbolicLinkStructFile {
+        repo_file: repo_file_append,
+        project_file: project_file_append,
+        is_linked: true,
+        source_type: source_type.to_string(),
+    };
+    match source_type {
+        "design" => file_structure.design.push(symbolic_link),
+        "simulation" => file_structure.simulation.push(symbolic_link),
+        "constraint" => file_structure.constraint.push(symbolic_link),
+        _ => panic!("The source type does not exist"),
+    }
 
 }
 
@@ -278,6 +434,46 @@ fn modify_project_file(file: ProjectFile) -> ProjectFile {
         exists: true,
     };
     new_file
+}
+
+fn add_file_from_vivado_to_repository(file: ProjectFile, repo_path: &str, source_type: &str) -> ProjectFile {
+    // Ignore the files that end with tilde
+    if file.file_name.ends_with("~") {
+        return ProjectFile {
+            file_name: file.file_name,
+            file_path: file.file_path,
+            file_age: SystemTime::now(),
+            exists: false,
+        };
+    }
+    let mut owned_repo_path = repo_path.to_owned();
+    owned_repo_path.push_str("/");
+
+
+    match source_type{
+        "design" => owned_repo_path.push_str("design_sources/"),
+        "simulation" => owned_repo_path.push_str("simulation_sources/"),
+        "constraint" => owned_repo_path.push_str("constraint_sources/"),
+        _ => panic!("The source type does not exist"),
+    }
+    owned_repo_path.push_str(&file.file_name);;
+    println!("{}", owned_repo_path);
+    let vivado_path_name = file.file_path.to_owned();
+    println!("{}", vivado_path_name);
+
+    fs::copy(vivado_path_name, owned_repo_path.clone()).expect("Something went wrong while copying the file");
+    // Copy the file from the vivado project to the repository
+    // Check if the file exists
+    let metadata = fs::metadata(owned_repo_path.clone()).unwrap();
+    let modified_time = metadata.modified().unwrap();
+    println!("{:?}", modified_time);
+
+    println!("{}", owned_repo_path);
+
+    let repo_struct = build_repository_file_struct(&file.file_name, &owned_repo_path);
+
+
+    repo_struct
 }
 
 
@@ -322,12 +518,18 @@ fn check_rewrite_file_loop(file_system: &mut FileStructure) {
     }
 }
 
+
 pub(crate) fn main_loop(repo_path: &str, vivado_project_path: &str, update_rate_ms: u64) {
     let mut file_structure = cache_files_directory_from_repository(repo_path, vivado_project_path);
     println!("File structure has been cached and is now ready to real time update!");
     println!("The real-time update rate is: {} ms", update_rate_ms);
     loop {
         check_rewrite_file_loop(&mut file_structure);
+        if check_file_structure(&mut file_structure) {
+            continue
+        } else {
+            println!("The file structure has changed!");
+        }
         std::thread::sleep(std::time::Duration::from_millis(update_rate_ms));
     }
 }
@@ -357,19 +559,6 @@ mod tests {
         assert_eq!(file.file_path, file_path);
     }
 
-    #[test]
-    fn test_check_file_exists() {
-        let file_name = "test_file.txt";
-        let file = fs::File::create(file_name).unwrap();
-        let file = ProjectFile {
-            file_name: file_name.to_string(),
-            file_path: file_name.to_string(),
-            file_age: SystemTime::now(),
-            exists: true,
-        };
-        let exists = check_file_exists(file);
-        assert_eq!(exists, true);
-    }
     #[test]
     fn test_cache_files_directory_from_repository() {
         let repo_path = "..";
