@@ -91,7 +91,16 @@ fn build_repository_file_struct(file_name: &str, file_path: &str) -> ProjectFile
             file_age: SystemTime::now(),
             exists: false,
         };
-    }
+    };
+    // Same  for .tmp files
+    if file_name.ends_with(".tmp") {
+        return ProjectFile {
+            file_name: file_name.to_string(),
+            file_path: file_path.to_string(),
+            file_age: SystemTime::now(),
+            exists: false,
+        };
+    };
 
     println!("File name: {}", file_name);
     println!("File path: {}", file_path);
@@ -125,6 +134,11 @@ fn check_file_has_changed(file: &ProjectFile) -> bool {
     if file.file_name.ends_with("~") {
         return false;
     }
+    // Same for .tmp files
+    if file.file_name.ends_with(".tmp") {
+        return false;
+    }
+
     //println!("File path: {}", file.file_path);
     let metadata = fs::metadata(file.file_path.clone()).unwrap();
     let modified_time = metadata.modified().unwrap();
@@ -446,6 +460,15 @@ fn add_file_from_vivado_to_repository(file: ProjectFile, repo_path: &str, source
             exists: false,
         };
     }
+    // Same for .tmp files
+    if file.file_name.ends_with(".tmp") {
+        return ProjectFile {
+            file_name: file.file_name,
+            file_path: file.file_path,
+            file_age: SystemTime::now(),
+            exists: false,
+        };
+    }
     let mut owned_repo_path = repo_path.to_owned();
     owned_repo_path.push_str("/");
 
@@ -456,7 +479,7 @@ fn add_file_from_vivado_to_repository(file: ProjectFile, repo_path: &str, source
         "constraint" => owned_repo_path.push_str("constraint_sources/"),
         _ => panic!("The source type does not exist"),
     }
-    owned_repo_path.push_str(&file.file_name);;
+    owned_repo_path.push_str(&file.file_name);
     println!("{}", owned_repo_path);
     let vivado_path_name = file.file_path.to_owned();
     println!("{}", vivado_path_name);
