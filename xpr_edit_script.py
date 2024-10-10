@@ -64,6 +64,7 @@ def edit_xpr_script(xpr_path):
             print(file_name)
 
             #print(dict_dump['Project']['FileSets']['FileSet'][0]['File'] )
+            ## TODO FIX THE BLOODY EDGE CASES IF THE FILE AINT EXSITING
             dict_dump['Project']['FileSets']['FileSet'][0]['File'].append(file_builder("design_sources", file_name))
             #print(dict_dump['Project']['FileSets']['FileSet'][0]['File'])
 
